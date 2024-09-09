@@ -1,0 +1,16 @@
+[BASIC]
+init-hook='import sys; sys.path.append("app")'
+; good-names =
+disable =
+    missing-module-docstring,
+ignore-paths =
+    build,
+    tests,
+    temp,
+    venv,
+    docs,
+    dist,
+    __pycache__,
+extension-pkg-whitelist=
+    pydantic,
+    orjson
