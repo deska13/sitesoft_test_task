@@ -162,3 +162,5 @@ cython_debug/
 #.idea/
 
 temp
+docker-compose.override.yml
+*.log*

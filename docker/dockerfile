@@ -1,0 +1,72 @@
+FROM python:3.10.14-slim-bookworm
+
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install --no-install-recommends -y \
+        bash \
+        build-essential \
+        curl \
+        gettext \
+        git \
+        libpq-dev
+
+
+ARG UID=1000 \
+    GID=1000
+
+ENV BUILD_ONLY_PACKAGES='wget' \
+    PYTHONFAULTHANDLER=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONHASHSEED=random \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=off \
+    PIP_DISABLE_PIP_VERSION_CHECK=on \
+    PIP_DEFAULT_TIMEOUT=100 \
+    DOCKERIZE_VERSION=v0.6.1 \
+    TINI_VERSION=v0.19.0 \
+    POETRY_VERSION=1.8.3 \
+    POETRY_NO_INTERACTION=1 \
+    POETRY_VIRTUALENVS_CREATE=false \
+    POETRY_CACHE_DIR='/var/cache/pypoetry' \
+    PATH="$PATH:/root/.local/bin"
+  
+  # System deps:
+  RUN apt-get install --no-install-recommends -y \
+    $BUILD_ONLY_PACKAGES \
+    && wget "https://github.com/jwilder/dockerize/releases/download/${DOCKERIZE_VERSION}/dockerize-linux-amd64-${DOCKERIZE_VERSION}.tar.gz" \
+    && tar -C /usr/local/bin -xzvf "dockerize-linux-amd64-${DOCKERIZE_VERSION}.tar.gz" \
+    && rm "dockerize-linux-amd64-${DOCKERIZE_VERSION}.tar.gz" && dockerize --version \
+    && wget -O /usr/local/bin/tini "https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini" \
+    && chmod +x /usr/local/bin/tini && tini --version \
+    && curl -sSL 'https://install.python-poetry.org' | python - \
+    && poetry --version \
+    && apt-get remove -y $BUILD_ONLY_PACKAGES \
+    && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
+    && apt-get clean -y && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+RUN groupadd -g "${GID}" -r web \
+    && useradd -d '/app' -g web -l -r -u "${UID}" web \
+    && chown web:web -R '/app'
+
+# ./alembic.ini
+COPY --chown=web:web ./poetry.lock ./pyproject.toml /app/
+
+RUN poetry version \
+    && poetry install --without dev --no-interaction --no-ansi \
+    && rm -rf "$POETRY_CACHE_DIR"
+
+COPY ./docker/common_scripts /common_scripts
+RUN chmod 777 /common_scripts
+
+USER web
+
+COPY --chown=web:web --chmod=500 ./docker/app_scripts /app_scripts
+
+ENTRYPOINT ["tini", "--", "/app_scripts/entrypoint.sh"]
+CMD ["/app_scripts/start.sh"]
+
+COPY --chown=web:web ./src /app/src
+
+WORKDIR /app/src

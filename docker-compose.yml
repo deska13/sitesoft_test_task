@@ -1,0 +1,50 @@
+version: "3.9"
+services:
+  parser_db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    env_file: ./config/.env
+    healthcheck:
+      test: pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+      timeout: 5s
+      interval: 30s
+      retries: 3
+
+  rabbit:
+    container_name: mas-rabbit
+    image: rabbitmq:3.12-management
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 10s
+      retries: 30
+
+  redis:
+    container_name: mas-redis
+    image: cr.yandex/crpilr3oblutbjcqa7vh/redis:bitnami
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+      - REDIS_AOF_ENABLED=no
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli ping | grep PONG" ]
+      interval: 20s
+      timeout: 3s
+      retries: 5
+
+  parser_api:
+    image: habr-parser
+    restart: unless-stopped
+    env_file:
+      - ./config/.env
+    depends_on:
+      - parser_db
+      - rabbit
+      - redis
+    ports:
+      - 8000:8000
+
+
+volumes:
+  pgdata:

@@ -1,8 +1,15 @@
 [BASIC]
-init-hook='import sys; sys.path.append("app")'
-; good-names =
+init-hook='import sys; sys.path.append("src")'
 disable =
     missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring,
+    no-member,
+    unused-import,
+    wrong-import-position,
+    broad-exception-caught,
+    unused-variable,
+    import-outside-toplevel,
 ignore-paths =
     build,
     tests,
@@ -11,6 +18,7 @@ ignore-paths =
     docs,
     dist,
     __pycache__,
+    src.parser_app.migrations,
 extension-pkg-whitelist=
     pydantic,
     orjson
